@@ -31,36 +31,48 @@ class _GroceryListState extends State<GroceryList> {
       'shopping_list.json',
     );
 
-    final response = await http.get(url);
-    final statusCode = response.statusCode;
-    print(statusCode);
-    if (statusCode >= 400) {
+    try {
+      final response = await http.get(url);
+      final statusCode = response.statusCode;
+
+      if (statusCode >= 400) {
+        setState(() {
+          _error = 'Failed to load items, please try again later.';
+        });
+      }
+      final data = response.body;
+      if (data == 'null') {
+        setState(() {
+          isLoading = false;
+        });
+        return;
+      }
+      final Map<String, dynamic> listData = json.decode(data);
+
+      final List<GroceryItem> loadedItems = [];
+      for (final item in listData.entries) {
+        final category = categories.entries
+            .firstWhere(
+              (element) => element.value.name == item.value['category'],
+            )
+            .value;
+        final groceryItem = GroceryItem(
+          id: item.key,
+          name: item.value['name'],
+          quantity: item.value['quantity'],
+          category: category,
+        );
+        loadedItems.add(groceryItem);
+      }
       setState(() {
-        _error = 'Failed to load items, please try again later.';
+        _groceryItems = loadedItems;
+        isLoading = false;
+      });
+    } catch (error) {
+      setState(() {
+        _error = 'Something went wrong, please try again later.';
       });
     }
-    final data = response.body;
-    final Map<String, dynamic> listData = json.decode(data);
-
-    final List<GroceryItem> loadedItems = [];
-    for (final item in listData.entries) {
-      final category = categories.entries
-          .firstWhere(
-            (element) => element.value.name == item.value['category'],
-          )
-          .value;
-      final groceryItem = GroceryItem(
-        id: item.key,
-        name: item.value['name'],
-        quantity: item.value['quantity'],
-        category: category,
-      );
-      loadedItems.add(groceryItem);
-    }
-    setState(() {
-      _groceryItems = loadedItems;
-      isLoading = false;
-    });
   }
 
   void _addItem() async {
@@ -75,10 +87,24 @@ class _GroceryListState extends State<GroceryList> {
     });
   }
 
-  void _removeItem(int index) {
+  void _removeItem(GroceryItem item, int index) async {
     setState(() {
-      _groceryItems.removeAt(index);
+      _groceryItems.remove(item);
     });
+
+    final url = Uri.https(
+      dotenv.env['FIREBASE_URL']!,
+      'shopping_list/${item.id}.json',
+    );
+
+    final response = await http.delete(url);
+    final statusCode = response.statusCode;
+
+    if (statusCode >= 400) {
+      setState(() {
+        _groceryItems.insert(index, item);
+      });
+    }
   }
 
   @override
@@ -109,7 +135,7 @@ class _GroceryListState extends State<GroceryList> {
               color: Colors.red,
             ),
             onDismissed: (_) {
-              _removeItem(index);
+              _removeItem(item, index);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text('${item.name} removed from cart'),
