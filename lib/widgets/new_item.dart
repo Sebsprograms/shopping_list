@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shopping_list/data/categories.dart';
+import 'package:shopping_list/models/category.dart';
+import 'package:shopping_list/models/grocery_item.dart';
 
 class NewItem extends StatefulWidget {
   const NewItem({super.key});
@@ -10,9 +12,20 @@ class NewItem extends StatefulWidget {
 
 class _NewItemState extends State<NewItem> {
   final _formKey = GlobalKey<FormState>();
+  String _enteredName = '';
+  int _enteredQuantity = 1;
+  Category _selectedCategory = categories[Categories.vegetables]!;
 
   void _save() {
-    _formKey.currentState!.validate();
+    if (_formKey.currentState!.validate()) {
+      _formKey.currentState!.save();
+      Navigator.of(context).pop(GroceryItem(
+        id: DateTime.now().toString(),
+        name: _enteredName,
+        quantity: _enteredQuantity,
+        category: _selectedCategory,
+      ));
+    }
   }
 
   @override
@@ -41,46 +54,61 @@ class _NewItemState extends State<NewItem> {
                     }
                     return null;
                   },
+                  onSaved: (value) {
+                    _enteredName = value!;
+                  },
                 ),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Expanded(
                       child: TextFormField(
-                          decoration: const InputDecoration(
-                            label: Text('Quantity'),
-                          ),
-                          keyboardType: TextInputType.number,
-                          initialValue: '1',
-                          validator: (value) {
-                            if (value == null ||
-                                value.isEmpty ||
-                                int.tryParse(value) == null ||
-                                int.parse(value) <= 0) {
-                              return 'Please enter a name';
-                            }
-                            return null;
-                          }),
+                        decoration: const InputDecoration(
+                          label: Text('Quantity'),
+                        ),
+                        keyboardType: TextInputType.number,
+                        initialValue: _enteredQuantity.toString(),
+                        validator: (value) {
+                          if (value == null ||
+                              value.isEmpty ||
+                              int.tryParse(value) == null ||
+                              int.parse(value) <= 0) {
+                            return 'Please enter a name';
+                          }
+                          return null;
+                        },
+                        onSaved: (value) {
+                          _enteredQuantity = int.parse(value!);
+                        },
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: DropdownButtonFormField(items: [
-                        for (final category in categories.entries)
-                          DropdownMenuItem(
-                            value: category.value,
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 16,
-                                  height: 16,
-                                  color: category.value.color,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(category.value.name),
-                              ],
+                      child: DropdownButtonFormField(
+                        value: _selectedCategory,
+                        items: [
+                          for (final category in categories.entries)
+                            DropdownMenuItem(
+                              value: category.value,
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 16,
+                                    height: 16,
+                                    color: category.value.color,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(category.value.name),
+                                ],
+                              ),
                             ),
-                          )
-                      ], onChanged: (value) {}),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedCategory = value as Category;
+                          });
+                        },
+                      ),
                     ),
                   ],
                 ),
@@ -96,7 +124,7 @@ class _NewItemState extends State<NewItem> {
                     ),
                     ElevatedButton(
                       onPressed: _save,
-                      child: const Text('Save'),
+                      child: const Text('Add Item'),
                     )
                   ],
                 ),
