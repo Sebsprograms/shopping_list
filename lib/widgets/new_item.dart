@@ -19,10 +19,14 @@ class _NewItemState extends State<NewItem> {
   String _enteredName = '';
   int _enteredQuantity = 1;
   Category _selectedCategory = categories[Categories.vegetables]!;
+  bool _isSubmitting = false;
 
   void _save() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
+      setState(() {
+        _isSubmitting = true;
+      });
       final url = Uri.https(
         dotenv.env['FIREBASE_URL']!,
         'shopping_list.json',
@@ -41,8 +45,15 @@ class _NewItemState extends State<NewItem> {
         ),
       );
 
+      final Map<String, dynamic> responseData = json.decode(response.body);
+
       if (!context.mounted) return;
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(GroceryItem(
+        id: responseData['name'],
+        name: _enteredName,
+        quantity: _enteredQuantity,
+        category: _selectedCategory,
+      ));
     }
   }
 
@@ -135,14 +146,22 @@ class _NewItemState extends State<NewItem> {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     TextButton(
-                      onPressed: () {
-                        _formKey.currentState!.reset();
-                      },
+                      onPressed: _isSubmitting
+                          ? null
+                          : () {
+                              _formKey.currentState!.reset();
+                            },
                       child: const Text('Reset'),
                     ),
                     ElevatedButton(
-                      onPressed: _save,
-                      child: const Text('Add Item'),
+                      onPressed: _isSubmitting ? null : _save,
+                      child: _isSubmitting
+                          ? const SizedBox(
+                              height: 16,
+                              width: 16,
+                              child: CircularProgressIndicator(),
+                            )
+                          : const Text('Add Item'),
                     )
                   ],
                 ),

@@ -16,6 +16,8 @@ class GroceryList extends StatefulWidget {
 
 class _GroceryListState extends State<GroceryList> {
   List<GroceryItem> _groceryItems = [];
+  bool isLoading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -30,6 +32,13 @@ class _GroceryListState extends State<GroceryList> {
     );
 
     final response = await http.get(url);
+    final statusCode = response.statusCode;
+    print(statusCode);
+    if (statusCode >= 400) {
+      setState(() {
+        _error = 'Failed to load items, please try again later.';
+      });
+    }
     final data = response.body;
     final Map<String, dynamic> listData = json.decode(data);
 
@@ -50,6 +59,7 @@ class _GroceryListState extends State<GroceryList> {
     }
     setState(() {
       _groceryItems = loadedItems;
+      isLoading = false;
     });
   }
 
@@ -59,7 +69,10 @@ class _GroceryListState extends State<GroceryList> {
       builder: (context) => const NewItem(),
     ));
 
-    _loadItems();
+    if (newItem == null) return;
+    setState(() {
+      _groceryItems.add(newItem);
+    });
   }
 
   void _removeItem(int index) {
@@ -73,6 +86,18 @@ class _GroceryListState extends State<GroceryList> {
     Widget content = const Center(
       child: Text('No items added yet'),
     );
+    if (isLoading) {
+      content = const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    if (_error != null) {
+      content = Center(
+        child: Text(_error!),
+      );
+    }
+
     if (_groceryItems.isNotEmpty) {
       content = ListView.builder(
         itemCount: _groceryItems.length,
